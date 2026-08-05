@@ -138,6 +138,7 @@
       <h1 id="yearTitle">แผนการซื้อ</h1>
     </div>
     <div class="hdr-btns">
+      <button class="reset" id="exportBtn" title="ส่งออกข้อมูล" style="display:none">⬆</button>
       <button class="reset" id="importBtn" title="นำเข้าข้อมูล">⇩</button>
       <button class="reset sync-btn" id="syncBtn" title="ซิงค์หลายเครื่อง">☁<span class="sync-dot off" id="syncDot"></span></button>
       <button class="reset" id="resetBtn" title="ล้างข้อมูล" style="display:none">↺</button>
@@ -210,10 +211,25 @@
   </div>
   </div>
 
+  <div class="modal-backdrop" id="exportBackdrop" style="display:none">
+  <div class="sync-panel" id="exportPanel">
+    <div class="sync-title">⬆ ส่งออกข้อมูล</div>
+    <div class="sync-note" style="margin-top:0; margin-bottom:10px;">
+      คัดลอกโค้ดนี้ แล้วนำไปวางในช่อง "นำเข้าข้อมูล" ของอีกเครื่อง/อีกเว็บ
+    </div>
+    <textarea class="sync-input" id="exportText" rows="4" readonly style="resize:vertical; font-family:monospace; font-size:11px;"></textarea>
+    <div class="sync-actions">
+      <button class="sync-save" id="exportCopy">คัดลอก</button>
+      <button class="sync-disable" id="exportClose">ปิด</button>
+    </div>
+  </div>
+  </div>
+
   <div class="modal-backdrop" id="syncBackdrop" style="display:none">
   <div class="sync-panel" id="syncPanel">
     <div class="sync-title">☁️ ซิงค์หลายเครื่อง</div>
     <span class="sync-status off" id="syncStatus">ปิดอยู่</span>
+    <div style="font-size:11px; color:#B5321F; margin-top:4px;" id="syncDetail"></div>
     <label class="sync-lbl">Project URL</label>
     <input class="sync-input" id="syncUrl" placeholder="https://xxxx.supabase.co" autocapitalize="off" autocorrect="off" spellcheck="false" />
     <label class="sync-lbl">Publishable key (sb_publishable_…)</label>
@@ -291,6 +307,7 @@ function render(){
   const funds = byFund();
 
   $("resetBtn").style.display = (state.target>0 || state.purchases.length>0) ? "grid" : "none";
+  $("exportBtn").style.display = (state.target>0 || state.purchases.length>0) ? "grid" : "none";
   renderTarget();
 
   const segs = $("segs"); segs.innerHTML = "";
@@ -449,6 +466,7 @@ async function init(){
   loadSyncCfg();
   setupSyncUI();
   setupImportUI();
+  setupExportUI();
   if(sync.on){ pullRemote(); document.addEventListener("visibilitychange", ()=>{ if(!document.hidden) pullRemote(); }); }
 }
 
@@ -490,18 +508,24 @@ function loadSyncCfg(){ try{ const v=localStorage.getItem("taxfund:sync"); if(v)
 function saveSyncCfg(){ try{ localStorage.setItem("taxfund:sync", JSON.stringify(sync)); }catch(e){} }
 function genCode(){ return "tf-"+Math.random().toString(36).slice(2,8)+Math.random().toString(36).slice(2,8); }
 function normalize(d){ return { target:d.target||0, purchases:Array.isArray(d.purchases)?d.purchases:[], customFunds:Array.isArray(d.customFunds)?d.customFunds:[], updatedAt:d.updatedAt||0 }; }
-function sbHeaders(){ return { "apikey":sync.key, "Authorization":"Bearer "+sync.key, "Content-Type":"application/json" }; }
+function sbHeaders(){
+  const h = { "apikey":sync.key, "Content-Type":"application/json" };
+  if (/^eyJ/.test(sync.key)) h["Authorization"] = "Bearer "+sync.key; // legacy JWT anon key only
+  return h;
+}
 
 function setSync(st){
   syncStatus = st;
   const map = { off:"ปิดอยู่", ok:"ซิงค์แล้ว ✓", syncing:"กำลังซิงค์…", error:"เชื่อมต่อไม่ได้ ลองใหม่", offline:"ออฟไลน์" };
   const el=$("syncStatus"); if(el){ el.textContent=map[st]||st; el.className="sync-status "+st; }
   const dot=$("syncDot"); if(dot) dot.className="sync-dot "+(sync.on?st:"off");
+  const detail=$("syncDetail"); if(detail) detail.textContent = st==="error" ? (lastSyncError||"") : "";
 }
+let lastSyncError = "";
 
 async function pushRemote(){
   if(!sync.on) return;
-  setSync("syncing");
+  lastSyncError=""; setSync("syncing");
   try{
     const body=[{ code:sync.code, data:state, updated_at:new Date(state.updatedAt||Date.now()).toISOString() }];
     const r=await fetch(sync.url+"/rest/v1/trackers?on_conflict=code", {
@@ -509,17 +533,17 @@ async function pushRemote(){
       headers:Object.assign(sbHeaders(),{ Prefer:"resolution=merge-duplicates" }),
       body:JSON.stringify(body)
     });
-    if(!r.ok) throw new Error("HTTP "+r.status);
+    if(!r.ok){ lastSyncError = "HTTP "+r.status+" "+(await r.text()).slice(0,120); throw new Error(lastSyncError); }
     setSync("ok");
-  }catch(e){ setSync("error"); }
+  }catch(e){ if(!lastSyncError) lastSyncError = String(e.message||e); setSync("error"); }
 }
 
 async function pullRemote(){
   if(!sync.on) return;
-  setSync("syncing");
+  lastSyncError=""; setSync("syncing");
   try{
     const r=await fetch(sync.url+"/rest/v1/trackers?code=eq."+encodeURIComponent(sync.code)+"&select=data,updated_at", { headers:sbHeaders() });
-    if(!r.ok) throw new Error("HTTP "+r.status);
+    if(!r.ok){ lastSyncError = "HTTP "+r.status+" "+(await r.text()).slice(0,120); throw new Error(lastSyncError); }
     const rows=await r.json();
     if(rows && rows[0] && rows[0].data){
       const rd=rows[0].data;
@@ -531,19 +555,20 @@ async function pullRemote(){
     } else {
       await pushRemote(); // ยังไม่มีข้อมูลบนคลาวด์ → อัปของเครื่องนี้ขึ้นไป
     }
-  }catch(e){ setSync("error"); }
+  }catch(e){ if(!lastSyncError) lastSyncError = String(e.message||e); setSync("error"); }
 }
 
 function fillSync(){ $("syncUrl").value=sync.url||""; $("syncKey").value=sync.key||""; if(sync.code) $("syncCode").value=sync.code; }
 
 function setupSyncUI(){
-  const panel=$("syncPanel");
+  const backdrop=$("syncBackdrop");
   $("syncBtn").onclick=()=>{
-    const impPanel=$("importPanel"); if(impPanel) impPanel.style.display="none";
-    const show = panel.style.display==="none";
+    const impBackdrop=$("importBackdrop"); if(impBackdrop) impBackdrop.style.display="none";
+    const show = backdrop.style.display==="none";
     if(show){ if(!$("syncCode").value) $("syncCode").value = sync.code || genCode(); fillSync(); }
-    panel.style.display = show ? "block" : "none";
+    backdrop.style.display = show ? "flex" : "none";
   };
+  backdrop.onclick = (e)=>{ if(e.target===backdrop) backdrop.style.display="none"; };
   $("syncSave").onclick=async ()=>{
     sync.url=($("syncUrl").value||"").trim().replace(/\/+$/,"");
     sync.key=($("syncKey").value||"").trim();
@@ -553,7 +578,7 @@ function setupSyncUI(){
     saveSyncCfg();
     if(sync.on){ await pullRemote(); } else { setSync("off"); }
   };
-  $("syncOff").onclick=()=>{ sync.on=false; saveSyncCfg(); setSync("off"); };
+  $("syncOff").onclick=()=>{ sync.on=false; saveSyncCfg(); setSync("off"); backdrop.style.display="none"; };
   $("syncCopy").onclick=async ()=>{
     try{ await navigator.clipboard.writeText($("syncCode").value); $("syncCopy").textContent="คัดลอกแล้ว"; setTimeout(()=>$("syncCopy").textContent="คัดลอก",1500);}catch(e){}
   };
@@ -564,13 +589,14 @@ function setupSyncUI(){
 
 // ---------- import (bring data from the Claude artifact / another export) ----------
 function setupImportUI(){
-  const panel = $("importPanel");
+  const backdrop = $("importBackdrop");
   $("importBtn").onclick = ()=>{
-    $("syncPanel").style.display = "none";
-    panel.style.display = panel.style.display === "none" ? "block" : "none";
+    $("syncBackdrop").style.display = "none";
+    backdrop.style.display = backdrop.style.display === "none" ? "flex" : "none";
     $("importMsg").textContent = "";
   };
-  $("importCancel").onclick = ()=>{ panel.style.display = "none"; };
+  backdrop.onclick = (e)=>{ if(e.target===backdrop) backdrop.style.display="none"; };
+  $("importCancel").onclick = ()=>{ backdrop.style.display = "none"; };
   $("importDo").onclick = async ()=>{
     const raw = ($("importText").value || "").trim();
     if(!raw){ return; }
@@ -582,7 +608,30 @@ function setupImportUI(){
     $("importMsg").style.color = "#0B7A55";
     $("importMsg").textContent = "นำเข้าสำเร็จ ✓" + (sync.on ? " กำลังซิงค์ขึ้นคลาวด์…" : "");
     $("importText").value = "";
-    setTimeout(()=>{ panel.style.display = "none"; }, 1200);
+    setTimeout(()=>{ backdrop.style.display = "none"; }, 1200);
+  };
+}
+
+
+// ---------- export (send data to another device / the deployed site) ----------
+function setupExportUI(){
+  const backdrop = $("exportBackdrop");
+  $("exportBtn").onclick = ()=>{
+    $("syncBackdrop").style.display = "none";
+    $("importBackdrop").style.display = "none";
+    $("exportText").value = JSON.stringify(state);
+    backdrop.style.display = "flex";
+  };
+  backdrop.onclick = (e)=>{ if(e.target===backdrop) backdrop.style.display="none"; };
+  $("exportClose").onclick = ()=>{ backdrop.style.display = "none"; };
+  $("exportCopy").onclick = async ()=>{
+    try{
+      await navigator.clipboard.writeText($("exportText").value);
+      $("exportCopy").textContent = "คัดลอกแล้ว ✓";
+      setTimeout(()=>{ $("exportCopy").textContent = "คัดลอก"; }, 1500);
+    }catch(e){
+      $("exportText").focus(); $("exportText").select();
+    }
   };
 }
 
