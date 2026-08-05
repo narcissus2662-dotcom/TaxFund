@@ -111,7 +111,8 @@
   .sync-dot{position:absolute; top:5px; right:5px; width:9px; height:9px; border-radius:50%; border:2px solid #fff; box-sizing:border-box;}
   .sync-dot.off{background:#C9BFA8;} .sync-dot.ok{background:#14C48B;}
   .sync-dot.syncing{background:#FFB021;} .sync-dot.error{background:#FF5C4D;} .sync-dot.offline{background:#C9BFA8;}
-  .sync-panel{background:var(--card); border-radius:22px; padding:18px; margin-top:14px; border:2px solid var(--line);}
+  .modal-backdrop{position:fixed; inset:0; background:rgba(22,19,15,.5); display:flex; align-items:center; justify-content:center; padding:20px; z-index:80;}
+  .sync-panel{background:var(--card); border-radius:22px; padding:18px; border:2px solid var(--line); max-width:400px; width:100%; max-height:85vh; overflow:auto;}
   .sync-title{font-weight:800; font-size:16px; margin-bottom:8px;}
   .sync-status{display:inline-block; font-size:12px; font-weight:700; padding:3px 10px; border-radius:20px; margin-bottom:12px;}
   .sync-status.off,.sync-status.offline{background:#EFE7D6; color:#6E6552;}
@@ -137,6 +138,7 @@
       <h1 id="yearTitle">แผนการซื้อ</h1>
     </div>
     <div class="hdr-btns">
+      <button class="reset" id="importBtn" title="นำเข้าข้อมูล">⇩</button>
       <button class="reset sync-btn" id="syncBtn" title="ซิงค์หลายเครื่อง">☁<span class="sync-dot off" id="syncDot"></span></button>
       <button class="reset" id="resetBtn" title="ล้างข้อมูล" style="display:none">↺</button>
     </div>
@@ -193,7 +195,23 @@
   <div class="list" id="list"></div>
   <div class="empty" id="emptyMsg" style="display:none">ยังไม่มีรายการ — เริ่มบันทึกการซื้อครั้งแรกได้เลย</div>
 
-  <div class="sync-panel" id="syncPanel" style="display:none">
+  <div class="modal-backdrop" id="importBackdrop" style="display:none">
+  <div class="sync-panel" id="importPanel">
+    <div class="sync-title">⇩ นำเข้าข้อมูล</div>
+    <div class="sync-note" style="margin-top:0; margin-bottom:10px;">
+      วางโค้ดที่คัดลอกมาจากปุ่ม "ส่งออกข้อมูล" ในแอปเดิม แล้วกดนำเข้า — ข้อมูลปัจจุบันในเครื่องนี้จะถูกแทนที่
+    </div>
+    <textarea class="sync-input" id="importText" rows="4" placeholder='{"target":300000,"purchases":[...],"customFunds":[...]}' style="resize:vertical; font-family:monospace; font-size:11px;"></textarea>
+    <div class="sync-actions">
+      <button class="sync-save" id="importDo">นำเข้า</button>
+      <button class="sync-disable" id="importCancel">ยกเลิก</button>
+    </div>
+    <div class="sync-note" id="importMsg"></div>
+  </div>
+  </div>
+
+  <div class="modal-backdrop" id="syncBackdrop" style="display:none">
+  <div class="sync-panel" id="syncPanel">
     <div class="sync-title">☁️ ซิงค์หลายเครื่อง</div>
     <span class="sync-status off" id="syncStatus">ปิดอยู่</span>
     <label class="sync-lbl">Project URL</label>
@@ -210,6 +228,7 @@
       <button class="sync-disable" id="syncOff">ปิดซิงค์</button>
     </div>
     <div class="sync-note">ข้อมูลเก็บบน Supabase ของคุณเอง · sync code นี้เหมือนรหัสผ่านเข้าถึงข้อมูล อย่าเผยแพร่ · เครื่องที่แก้ล่าสุดจะทับของเก่า</div>
+  </div>
   </div>
 </div>
 
@@ -429,6 +448,7 @@ async function init(){
   setupPWA();
   loadSyncCfg();
   setupSyncUI();
+  setupImportUI();
   if(sync.on){ pullRemote(); document.addEventListener("visibilitychange", ()=>{ if(!document.hidden) pullRemote(); }); }
 }
 
@@ -519,6 +539,7 @@ function fillSync(){ $("syncUrl").value=sync.url||""; $("syncKey").value=sync.ke
 function setupSyncUI(){
   const panel=$("syncPanel");
   $("syncBtn").onclick=()=>{
+    const impPanel=$("importPanel"); if(impPanel) impPanel.style.display="none";
     const show = panel.style.display==="none";
     if(show){ if(!$("syncCode").value) $("syncCode").value = sync.code || genCode(); fillSync(); }
     panel.style.display = show ? "block" : "none";
@@ -538,6 +559,31 @@ function setupSyncUI(){
   };
   fillSync();
   setSync(sync.on ? "ok" : "off");
+}
+
+
+// ---------- import (bring data from the Claude artifact / another export) ----------
+function setupImportUI(){
+  const panel = $("importPanel");
+  $("importBtn").onclick = ()=>{
+    $("syncPanel").style.display = "none";
+    panel.style.display = panel.style.display === "none" ? "block" : "none";
+    $("importMsg").textContent = "";
+  };
+  $("importCancel").onclick = ()=>{ panel.style.display = "none"; };
+  $("importDo").onclick = async ()=>{
+    const raw = ($("importText").value || "").trim();
+    if(!raw){ return; }
+    let parsed;
+    try{ parsed = JSON.parse(raw); }
+    catch(e){ $("importMsg").textContent = "โค้ดไม่ถูกต้อง ลองคัดลอกใหม่อีกครั้ง"; $("importMsg").style.color = "#B5321F"; return; }
+    state = normalize(parsed);
+    persist(); render();
+    $("importMsg").style.color = "#0B7A55";
+    $("importMsg").textContent = "นำเข้าสำเร็จ ✓" + (sync.on ? " กำลังซิงค์ขึ้นคลาวด์…" : "");
+    $("importText").value = "";
+    setTimeout(()=>{ panel.style.display = "none"; }, 1200);
+  };
 }
 
 init();
