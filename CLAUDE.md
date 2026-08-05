@@ -32,7 +32,8 @@ and the live site updates on its own. No manual upload needed.
   (`{ url, key, code, on }`), entered via the ☁ button in the header.
 - Uses Supabase REST directly (no SDK): `POST /rest/v1/trackers?on_conflict=code` with header
   `Prefer: resolution=merge-duplicates` to upsert; `GET /rest/v1/trackers?code=eq.<code>` to pull.
-- Auth: **publishable key** (`sb_publishable_…`) sent as both `apikey` and `Authorization: Bearer`.
+- Auth: the key always goes in the `apikey` header. `sbHeaders()` adds `Authorization: Bearer` **only**
+  for legacy JWT anon keys (those starting `eyJ`) — a `sb_publishable_…` key does not get that header.
 - Table `public.trackers (code text pk, data jsonb, updated_at timestamptz)` with RLS + anon
   policies. Conflict strategy: **last-write-wins** by `updatedAt`.
 - `code` is a secret (like a password). Never log it or expose it.
@@ -55,12 +56,19 @@ and the live site updates on its own. No manual upload needed.
   bright color blocks, not light-on-light.
 - Keep element **IDs and class names stable** — the JS wires everything by ID.
 - Keep UI copy in **Thai**.
-- Sanity-check after editing: extract the inline `<script>` and run `node --check` on it.
+- After changing `state`, always call **`persist()`** (it stamps `updatedAt` and schedules the cloud
+  push), never `saveData()` / `saveLocalOnly()` directly — otherwise the change never syncs.
+- If you change the shape of `state`, update **`normalize()`** too, or older synced data breaks.
+- Month indexes in JS are 0-based: the 30 Nov deadline is `new Date(year, 10, 30)`.
+- Sanity-check after editing (see below).
 
 ## Handy commands
 ```bash
-# quick JS syntax check on the inline script
-sed -n '/<script>/,/<\/script>/p' index.html | sed '1d;$d' > /tmp/app.js && node --check /tmp/app.js
+# quick JS syntax check on the inline script (Node is NOT installed on this Mac —
+# use the built-in JavaScriptCore instead; new Function() parses without executing)
+sed -n '/<script>/,/<\/script>/p' index.html | sed '1d;$d' > /tmp/app.js && \
+/System/Library/Frameworks/JavaScriptCore.framework/Versions/A/Helpers/jsc \
+  -e 'new Function(readFile("/tmp/app.js")); print("JS OK")'
 
 git add -A && git commit -m "..." && git push   # → Netlify auto-deploys
 ```
