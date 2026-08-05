@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1" />
+<title>กองทุนลดหย่อนภาษี</title>
+
+<!-- PWA / Add to Home Screen -->
+<meta name="theme-color" content="#3B4CF0" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="ลดหย่อนภาษี" />
+<link id="manifest" rel="manifest" />
+<link id="appleIcon" rel="apple-touch-icon" />
+<link id="favicon" rel="icon" />
+
+<link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --ink:#16130F; --cobalt:#3B4CF0; --coral:#FF5C4D; --mint:#14C48B;
+    --bubble:#FF8CC6; --lemon:#FFD23F; --violet:#8B5CF6;
+    --cream:#FBF4E9; --card:#FFFFFF; --muted:#6E6552; --line:#EBE2CF;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0; background:var(--cream);}
+  body{ font-family:'Kanit', -apple-system, BlinkMacSystemFont, sans-serif; color:var(--ink); }
+  #app{
+    max-width:440px; margin:0 auto;
+    padding:calc(22px + env(safe-area-inset-top)) 16px calc(40px + env(safe-area-inset-bottom));
+    min-height:100vh;
+  }
+
+  .hdr{display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:20px;}
+  .eyebrow{font-size:12px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:#B5321F; margin-bottom:1px;}
+  .hdr h1{font-size:30px; font-weight:800; margin:0; line-height:1.05; letter-spacing:-.01em;}
+  .reset{background:#fff; border:2px solid var(--ink); border-radius:14px; width:40px; height:40px; display:grid; place-items:center; color:var(--ink); cursor:pointer; font-size:18px; font-weight:700;}
+  .reset:active{background:var(--lemon);}
+
+  .target{background:var(--cobalt); border-radius:22px; padding:16px 20px; display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;}
+  .target-label{display:flex; align-items:center; gap:6px; color:#EAEDFF; font-size:14px; font-weight:600;}
+  .target-value{background:none; border:none; color:#fff; font-size:24px; font-weight:800; cursor:pointer; font-family:inherit; letter-spacing:-.01em;}
+  .target-edit{display:flex; align-items:center; gap:5px;}
+  .target-edit input{width:135px; background:rgba(255,255,255,.16); border:none; border-radius:10px; padding:7px 9px; color:#fff; font-size:18px; font-weight:700; font-family:inherit;}
+  .target-edit input::placeholder{color:#B9C1FF;}
+  .baht{color:#B9C1FF; font-weight:700;}
+  .mini-btn{background:var(--lemon); border:none; border-radius:10px; width:34px; height:34px; display:grid; place-items:center; color:var(--ink); cursor:pointer; font-size:16px; font-weight:800;}
+
+  .card{background:var(--card); border-radius:26px; padding:20px; margin-bottom:14px;}
+  .chart-wrap{position:relative; width:224px; height:224px; margin:2px auto 4px;}
+  .chart-wrap svg{width:224px; height:224px; transform:rotate(-90deg);}
+  .center{position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; pointer-events:none;}
+  .pct{font-size:54px; font-weight:800; line-height:1; letter-spacing:-.03em;}
+  .pct.done{color:#0E9E70;}
+  .center-sub{font-size:13px; color:var(--muted); margin-top:4px; font-weight:600;}
+
+  .stats{display:flex; align-items:center; justify-content:center; gap:22px; margin-top:8px;}
+  .stat-num{font-size:22px; font-weight:800; text-align:center; letter-spacing:-.01em;}
+  .stat-num.muted{color:var(--muted);}
+  .stat-lbl{font-size:12px; color:var(--muted); text-align:center; margin-top:0; font-weight:600;}
+  .vdiv{width:2px; height:34px; background:var(--line); border-radius:2px;}
+
+  .legend{display:flex; flex-wrap:wrap; gap:8px 14px; justify-content:center; margin-top:16px; padding-top:16px; border-top:2px solid var(--line);}
+  .legend:empty{display:none;}
+  .legend-item{display:flex; align-items:center; gap:6px; font-size:13px; font-weight:600;}
+  .dot{width:11px; height:11px; border-radius:50%; display:inline-block;}
+  .reached{text-align:center; margin-top:14px; font-weight:800; color:#0E9E70; font-size:16px;}
+
+  .pace{background:var(--coral); border-radius:26px; padding:20px 22px; margin-bottom:14px; color:#fff;}
+  .pace-top{display:flex; justify-content:space-between; align-items:center; gap:8px;}
+  .pace-lbl{font-size:14px; color:var(--ink); font-weight:600;}
+  .pace-weeks{font-size:12px; font-weight:700; background:var(--ink); color:var(--cream); padding:4px 11px; border-radius:20px; white-space:nowrap;}
+  .pace-num{font-size:42px; font-weight:800; margin-top:8px; letter-spacing:-.02em; color:var(--ink);}
+  .pace-num span{font-size:16px; font-weight:600; color:#4A130D; margin-left:5px;}
+  .pace-sub{font-size:13px; color:#4A130D; margin-top:2px; font-weight:600;}
+
+  .form-title{font-weight:800; font-size:18px; margin-bottom:14px;}
+  .chips{display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px;}
+  .chip{background:var(--cream); border:2px solid var(--ink); border-radius:22px; padding:7px 15px; font-size:14px; font-weight:600; cursor:pointer; color:var(--ink); font-family:inherit;}
+  .chip.active{background:var(--lemon); border-color:var(--ink); color:var(--ink);}
+  .chip-custom{display:inline-flex; align-items:center; padding:0; overflow:hidden;}
+  .chip-label{background:none; border:none; padding:7px 4px 7px 15px; font-size:14px; font-weight:600; color:inherit; cursor:pointer; font-family:inherit;}
+  .chip-x{background:none; border:none; padding:7px 11px 7px 6px; display:grid; place-items:center; cursor:pointer; color:inherit; opacity:.55; font-size:13px; line-height:1;}
+  .chip-x:active{opacity:1;}
+
+  .row{display:flex; gap:8px; margin-bottom:9px;}
+  .row:last-child{margin-bottom:0;}
+  .fund-input{flex:1; border:2px solid var(--ink); border-radius:14px; padding:11px 13px; font-size:15px; font-weight:500; font-family:inherit; color:var(--ink); min-width:0; background:#fff;}
+  .date-input{border:2px solid var(--ink); border-radius:14px; padding:11px 11px; font-size:14px; font-weight:500; font-family:inherit; color:var(--ink); background:#fff;}
+  .amount{flex:1; display:flex; align-items:center; gap:6px; border:2px solid var(--ink); border-radius:14px; padding:0 13px; min-width:0; background:#fff;}
+  .amount .baht{color:var(--ink);}
+  .amount input{flex:1; border:none; padding:11px 0; font-size:17px; font-weight:700; font-family:inherit; color:var(--ink); min-width:0; background:none;}
+  .add{background:var(--ink); color:var(--cream); border:none; border-radius:14px; padding:0 20px; font-size:16px; font-weight:700; cursor:pointer; font-family:inherit; white-space:nowrap;}
+  .add:active{background:var(--cobalt);}
+  input:focus{outline:none; border-color:var(--cobalt);}
+
+  .list{display:flex; flex-direction:column; gap:9px;}
+  .item{background:var(--card); border-radius:18px; padding:13px 16px; display:flex; justify-content:space-between; align-items:center;}
+  .item-fund{font-weight:700; font-size:16px;}
+  .item-date{font-size:12px; color:var(--muted); font-weight:500;}
+  .item-right{display:flex; align-items:center; gap:12px;}
+  .item-amt{font-weight:800; font-size:16px;}
+  .del{background:none; border:none; color:var(--coral); cursor:pointer; padding:4px; font-size:15px;}
+  .empty{text-align:center; color:var(--muted); font-size:14px; padding:22px 10px; font-weight:500;}
+
+  @media (prefers-reduced-motion: reduce){ *{transition:none !important;} }
+
+  /* sync */
+  .hdr-btns{display:flex; gap:8px;}
+  .sync-btn{position:relative;}
+  .sync-dot{position:absolute; top:5px; right:5px; width:9px; height:9px; border-radius:50%; border:2px solid #fff; box-sizing:border-box;}
+  .sync-dot.off{background:#C9BFA8;} .sync-dot.ok{background:#14C48B;}
+  .sync-dot.syncing{background:#FFB021;} .sync-dot.error{background:#FF5C4D;} .sync-dot.offline{background:#C9BFA8;}
+  .modal-backdrop{position:fixed; inset:0; background:rgba(22,19,15,.5); display:flex; align-items:center; justify-content:center; padding:20px; z-index:80;}
+  .sync-panel{background:var(--card); border-radius:22px; padding:18px; border:2px solid var(--line); max-width:400px; width:100%; max-height:85vh; overflow:auto;}
+  .sync-title{font-weight:800; font-size:16px; margin-bottom:8px;}
+  .sync-status{display:inline-block; font-size:12px; font-weight:700; padding:3px 10px; border-radius:20px; margin-bottom:12px;}
+  .sync-status.off,.sync-status.offline{background:#EFE7D6; color:#6E6552;}
+  .sync-status.ok{background:#D6F7EA; color:#0B7A55;}
+  .sync-status.syncing{background:#FFE9C2; color:#8A5A00;}
+  .sync-status.error{background:#FFE1DD; color:#B5321F;}
+  .sync-lbl{display:block; font-size:12px; font-weight:600; color:var(--muted); margin:8px 0 4px;}
+  .sync-input{width:100%; border:2px solid var(--line); border-radius:12px; padding:10px 12px; font-size:14px; font-family:inherit; color:var(--ink); background:#fff;}
+  .sync-code-row{display:flex; gap:8px;}
+  .sync-code-row .sync-input{flex:1;}
+  .sync-copy{border:2px solid var(--ink); background:#fff; border-radius:12px; padding:0 14px; font-weight:700; font-size:13px; font-family:inherit; cursor:pointer; white-space:nowrap;}
+  .sync-actions{display:flex; gap:8px; margin-top:14px;}
+  .sync-save{flex:1; background:var(--cobalt); color:#fff; border:none; border-radius:12px; padding:12px; font-size:15px; font-weight:700; font-family:inherit; cursor:pointer;}
+  .sync-disable{background:#fff; color:var(--muted); border:2px solid var(--line); border-radius:12px; padding:12px 16px; font-size:14px; font-weight:600; font-family:inherit; cursor:pointer;}
+  .sync-note{font-size:11px; color:var(--muted); margin-top:10px; line-height:1.5;}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="hdr">
+    <div>
+      <div class="eyebrow">กองทุนลดหย่อนภาษี</div>
+      <h1 id="yearTitle">แผนการซื้อ</h1>
+    </div>
+    <div class="hdr-btns">
+      <button class="reset" id="exportBtn" title="ส่งออกข้อมูล" style="display:none">⬆</button>
+      <button class="reset" id="importBtn" title="นำเข้าข้อมูล">⇩</button>
+      <button class="reset sync-btn" id="syncBtn" title="ซิงค์หลายเครื่อง">☁<span class="sync-dot off" id="syncDot"></span></button>
+      <button class="reset" id="resetBtn" title="ล้างข้อมูล" style="display:none">↺</button>
+    </div>
+  </div>
+
+  <!-- เป้าหมาย -->
+  <div class="target">
+    <div class="target-label">🎯 เป้าหมายทั้งปี</div>
+    <div id="targetSlot"></div>
+  </div>
+
+  <!-- วงกลม -->
+  <div class="card">
+    <div class="chart-wrap">
+      <svg viewBox="0 0 120 120">
+        <circle cx="60" cy="60" r="48" fill="none" stroke="#EFE7D6" stroke-width="15"/>
+        <g id="segs"></g>
+      </svg>
+      <div class="center">
+        <div class="pct" id="pctText">—</div>
+        <div class="center-sub">ของเป้าหมาย</div>
+      </div>
+    </div>
+    <div class="stats">
+      <div><div class="stat-num" id="boughtNum">฿0</div><div class="stat-lbl">ซื้อแล้ว</div></div>
+      <div class="vdiv"></div>
+      <div><div class="stat-num muted" id="remainNum">฿0</div><div class="stat-lbl">เหลืออีก</div></div>
+    </div>
+    <div class="legend" id="legend"></div>
+    <div id="reachedSlot"></div>
+  </div>
+
+  <!-- ทยอยซื้อรายสัปดาห์ -->
+  <div id="paceSlot"></div>
+
+  <!-- ฟอร์ม -->
+  <div class="card">
+    <div class="form-title">บันทึกการซื้อ</div>
+    <div class="chips" id="chips"></div>
+    <div class="row">
+      <input class="fund-input" id="fundInput" type="text" placeholder="ชื่อกองทุน" />
+      <input class="date-input" id="dateInput" type="date" />
+    </div>
+    <div class="row">
+      <div class="amount">
+        <span class="baht">฿</span>
+        <input id="amountInput" type="text" inputmode="numeric" placeholder="จำนวนเงิน" />
+      </div>
+      <button class="add" id="addBtn">+ เพิ่ม</button>
+    </div>
+  </div>
+
+  <!-- รายการ -->
+  <div class="list" id="list"></div>
+  <div class="empty" id="emptyMsg" style="display:none">ยังไม่มีรายการ — เริ่มบันทึกการซื้อครั้งแรกได้เลย</div>
+
+  <div class="modal-backdrop" id="importBackdrop" style="display:none">
+  <div class="sync-panel" id="importPanel">
+    <div class="sync-title">⇩ นำเข้าข้อมูล</div>
+    <div class="sync-note" style="margin-top:0; margin-bottom:10px;">
+      วางโค้ดที่คัดลอกมาจากปุ่ม "ส่งออกข้อมูล" ในแอปเดิม แล้วกดนำเข้า — ข้อมูลปัจจุบันในเครื่องนี้จะถูกแทนที่
+    </div>
+    <textarea class="sync-input" id="importText" rows="4" placeholder='{"target":300000,"purchases":[...],"customFunds":[...]}' style="resize:vertical; font-family:monospace; font-size:11px;"></textarea>
+    <div class="sync-actions">
+      <button class="sync-save" id="importDo">นำเข้า</button>
+      <button class="sync-disable" id="importCancel">ยกเลิก</button>
+    </div>
+    <div class="sync-note" id="importMsg"></div>
+  </div>
+  </div>
+
+  <div class="modal-backdrop" id="exportBackdrop" style="display:none">
+  <div class="sync-panel" id="exportPanel">
+    <div class="sync-title">⬆ ส่งออกข้อมูล</div>
+    <div class="sync-note" style="margin-top:0; margin-bottom:10px;">
+      คัดลอกโค้ดนี้ แล้วนำไปวางในช่อง "นำเข้าข้อมูล" ของอีกเครื่อง/อีกเว็บ
+    </div>
+    <textarea class="sync-input" id="exportText" rows="4" readonly style="resize:vertical; font-family:monospace; font-size:11px;"></textarea>
+    <div class="sync-actions">
+      <button class="sync-save" id="exportCopy">คัดลอก</button>
+      <button class="sync-disable" id="exportClose">ปิด</button>
+    </div>
+  </div>
+  </div>
+
+  <div class="modal-backdrop" id="syncBackdrop" style="display:none">
+  <div class="sync-panel" id="syncPanel">
+    <div class="sync-title">☁️ ซิงค์หลายเครื่อง</div>
+    <span class="sync-status off" id="syncStatus">ปิดอยู่</span>
+    <div style="font-size:11px; color:#B5321F; margin-top:4px;" id="syncDetail"></div>
+    <label class="sync-lbl">Project URL</label>
+    <input class="sync-input" id="syncUrl" placeholder="https://xxxx.supabase.co" autocapitalize="off" autocorrect="off" spellcheck="false" />
+    <label class="sync-lbl">Publishable key (sb_publishable_…)</label>
+    <input class="sync-input" id="syncKey" placeholder="sb_publishable_…" autocapitalize="off" autocorrect="off" spellcheck="false" />
+    <label class="sync-lbl">Sync code (ใช้โค้ดเดียวกันทุกเครื่อง)</label>
+    <div class="sync-code-row">
+      <input class="sync-input" id="syncCode" placeholder="tf-xxxx" autocapitalize="off" autocorrect="off" spellcheck="false" />
+      <button class="sync-copy" id="syncCopy">คัดลอก</button>
+    </div>
+    <div class="sync-actions">
+      <button class="sync-save" id="syncSave">บันทึก & ซิงค์</button>
+      <button class="sync-disable" id="syncOff">ปิดซิงค์</button>
+    </div>
+    <div class="sync-note">ข้อมูลเก็บบน Supabase ของคุณเอง · sync code นี้เหมือนรหัสผ่านเข้าถึงข้อมูล อย่าเผยแพร่ · เครื่องที่แก้ล่าสุดจะทับของเก่า</div>
+  </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+const KEY = "taxfund:data";
+const PRESET_FUNDS = ["RMF", "SSF", "Thai ESG", "Thai ESGX"];
+const SEG_COLORS = ["#3B4CF0","#FF5C4D","#14C48B","#FF8CC6","#FFD23F","#8B5CF6"];
+const THIS_YEAR_BE = new Date().getFullYear() + 543;
+const C = 2 * Math.PI * 48;
+
+// ---------- storage: ใช้ได้ทั้งใน Claude (window.storage) และบนเว็บที่ deploy (localStorage) ----------
+async function loadData(){
+  try{
+    if (window.storage && window.storage.get){
+      const r = await window.storage.get(KEY);
+      return r && r.value ? JSON.parse(r.value) : null;
+    }
+  }catch(e){}
+  try{
+    const s = localStorage.getItem(KEY);
+    return s ? JSON.parse(s) : null;
+  }catch(e){ return null; }
+}
+async function saveData(d){
+  const val = JSON.stringify(d);
+  try{
+    if (window.storage && window.storage.set){ await window.storage.set(KEY, val); return; }
+  }catch(e){}
+  try{ localStorage.setItem(KEY, val); }catch(e){}
+}
+
+// ---------- state ----------
+let state = { target:0, purchases:[], customFunds:[] };
+let selectedFund = "RMF";
+
+const fmt = (n)=> new Intl.NumberFormat("th-TH",{maximumFractionDigits:0}).format(Math.round(n||0));
+const $ = (id)=> document.getElementById(id);
+
+function totals(){
+  const bought = state.purchases.reduce((s,p)=>s+(p.amount||0),0);
+  const remaining = Math.max(state.target - bought, 0);
+  const pct = state.target>0 ? Math.min(bought/state.target*100,100) : 0;
+  return { bought, remaining, pct, reached: state.target>0 && bought>=state.target };
+}
+function byFund(){
+  const m = new Map();
+  for(const p of state.purchases) m.set(p.fund,(m.get(p.fund)||0)+p.amount);
+  return [...m].map(([name,value])=>({name,value})).sort((a,b)=>b.value-a.value);
+}
+function weeksToDeadline(){
+  const deadline = new Date(new Date().getFullYear(), 10, 30);
+  return Math.max(0, Math.ceil((deadline - new Date())/(7*24*3600*1000)));
+}
+
+// ---------- render ----------
+function render(){
+  $("yearTitle").textContent = "แผนการซื้อ ปี " + THIS_YEAR_BE;
+  const t = totals();
+  const funds = byFund();
+
+  $("resetBtn").style.display = (state.target>0 || state.purchases.length>0) ? "grid" : "none";
+  $("exportBtn").style.display = (state.target>0 || state.purchases.length>0) ? "grid" : "none";
+  renderTarget();
+
+  const segs = $("segs"); segs.innerHTML = "";
+  const denom = Math.max(state.target, t.bought) || 1;
+  let acc = 0;
+  const drawSeg = (frac, color)=>{
+    if(frac<=0) return;
+    const c = document.createElementNS("http://www.w3.org/2000/svg","circle");
+    c.setAttribute("cx",60); c.setAttribute("cy",60); c.setAttribute("r",48);
+    c.setAttribute("fill","none"); c.setAttribute("stroke",color); c.setAttribute("stroke-width",15);
+    c.setAttribute("stroke-dasharray", (frac*C)+" "+C);
+    c.setAttribute("stroke-dashoffset", (-acc*C));
+    segs.appendChild(c);
+    acc += frac;
+  };
+  funds.forEach((f,i)=> drawSeg(f.value/denom, SEG_COLORS[i%SEG_COLORS.length]));
+
+  const pctEl = $("pctText");
+  pctEl.textContent = state.target>0 ? Math.round(t.pct)+"%" : "—";
+  pctEl.className = "pct" + (t.reached ? " done" : "");
+
+  $("boughtNum").textContent = "฿"+fmt(t.bought);
+  $("remainNum").textContent = "฿"+fmt(t.remaining);
+
+  const lg = $("legend"); lg.innerHTML = "";
+  funds.forEach((f,i)=>{
+    const el = document.createElement("div"); el.className="legend-item";
+    el.innerHTML = '<span class="dot" style="background:'+SEG_COLORS[i%SEG_COLORS.length]+'"></span>'+
+                   escapeHtml(f.name)+' · ฿'+fmt(f.value);
+    lg.appendChild(el);
+  });
+  $("reachedSlot").innerHTML = t.reached ? '<div class="reached">🎉 ถึงเป้าแล้ว!</div>' : "";
+
+  renderPace(t.remaining);
+  renderChips();
+  renderList();
+}
+
+function renderTarget(){
+  const slot = $("targetSlot");
+  slot.innerHTML = "";
+  const btn = document.createElement("button");
+  btn.className = "target-value";
+  btn.textContent = state.target>0 ? "฿"+fmt(state.target) : "แตะเพื่อตั้งเป้า";
+  btn.onclick = ()=>{
+    slot.innerHTML = "";
+    const wrap = document.createElement("div"); wrap.className="target-edit";
+    const inp = document.createElement("input");
+    inp.type="text"; inp.inputMode="numeric"; inp.placeholder="เช่น 300000";
+    inp.value = state.target? String(state.target):"";
+    const ok = document.createElement("button"); ok.className="mini-btn"; ok.textContent="✓";
+    const save = ()=>{ const v=parseFloat(inp.value.replace(/,/g,"")); state.target=(!v||v<0)?0:v; persist(); render(); };
+    ok.onclick=save; inp.onkeydown=(e)=>{ if(e.key==="Enter") save(); };
+    wrap.append(inp, ok); slot.appendChild(wrap); inp.focus();
+  };
+  slot.appendChild(btn);
+}
+
+function renderPace(remaining){
+  const slot = $("paceSlot");
+  if(!(state.target>0 && remaining>0)){ slot.innerHTML=""; return; }
+  const w = weeksToDeadline();
+  if(w<=0){
+    slot.innerHTML = '<div class="pace"><div class="pace-sub" style="text-align:center">เลยกำหนด 30 พ.ย. ของปีนี้แล้ว</div></div>';
+    return;
+  }
+  const perWeek = remaining / w;
+  slot.innerHTML =
+    '<div class="pace">'+
+      '<div class="pace-top"><span class="pace-lbl">ทยอยซื้อทุกสัปดาห์ ถึง 30 พ.ย.</span>'+
+      '<span class="pace-weeks">เหลือ '+w+' สัปดาห์</span></div>'+
+      '<div class="pace-num">฿'+fmt(perWeek)+'<span>/สัปดาห์</span></div>'+
+      '<div class="pace-sub">รวมยอดที่ยังต้องซื้อ ฿'+fmt(remaining)+'</div>'+
+    '</div>';
+}
+
+function renderChips(){
+  const box = $("chips"); box.innerHTML = "";
+  PRESET_FUNDS.forEach(f=>{
+    const b = document.createElement("button");
+    b.className = "chip"+(selectedFund===f?" active":"");
+    b.textContent = f;
+    b.onclick = ()=>{ selectedFund=f; $("fundInput").value=f; renderChips(); };
+    box.appendChild(b);
+  });
+  state.customFunds.forEach(f=>{
+    const span = document.createElement("span");
+    span.className = "chip chip-custom"+(selectedFund===f?" active":"");
+    const lbl = document.createElement("button"); lbl.className="chip-label"; lbl.textContent=f;
+    lbl.onclick = ()=>{ selectedFund=f; $("fundInput").value=f; renderChips(); };
+    const x = document.createElement("button"); x.className="chip-x"; x.textContent="✕"; x.title="ลบ "+f;
+    x.onclick = ()=>{ state.customFunds = state.customFunds.filter(c=>c!==f); persist(); renderChips(); };
+    span.append(lbl, x); box.appendChild(span);
+  });
+}
+
+function renderList(){
+  const list = $("list"); list.innerHTML = "";
+  state.purchases.forEach(p=>{
+    const row = document.createElement("div"); row.className="item";
+    const d = new Date(p.date).toLocaleDateString("th-TH",{day:"numeric",month:"short"});
+    row.innerHTML =
+      '<div><div class="item-fund">'+escapeHtml(p.fund)+'</div><div class="item-date">'+d+'</div></div>'+
+      '<div class="item-right"><span class="item-amt">฿'+fmt(p.amount)+'</span>'+
+      '<button class="del" data-id="'+p.id+'">🗑</button></div>';
+    row.querySelector(".del").onclick = ()=>{
+      state.purchases = state.purchases.filter(x=>x.id!==p.id); persist(); render();
+    };
+    list.appendChild(row);
+  });
+  $("emptyMsg").style.display = state.purchases.length===0 ? "block" : "none";
+}
+
+function escapeHtml(s){ return String(s).replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+
+// ---------- actions ----------
+function addPurchase(){
+  const amt = parseFloat(($("amountInput").value||"").replace(/,/g,""));
+  if(!amt || amt<=0) return;
+  const name = ($("fundInput").value||"").trim() || "อื่นๆ";
+  state.purchases.unshift({ id:Date.now(), date:$("dateInput").value, fund:name, amount:amt });
+  if(!PRESET_FUNDS.includes(name) && !state.customFunds.includes(name)) state.customFunds.push(name);
+  $("amountInput").value = "";
+  persist(); render();
+}
+
+let saveTimer=null;
+function saveLocalOnly(){ clearTimeout(saveTimer); saveTimer=setTimeout(()=>saveData(state), 120); }
+let pushTimer=null;
+function persist(){ state.updatedAt=Date.now(); saveLocalOnly(); if(sync.on){ clearTimeout(pushTimer); pushTimer=setTimeout(pushRemote,600); } }
+
+// ---------- init ----------
+async function init(){
+  $("dateInput").value = new Date().toISOString().slice(0,10);
+  $("fundInput").value = selectedFund;
+  $("addBtn").onclick = addPurchase;
+  $("amountInput").addEventListener("keydown", e=>{ if(e.key==="Enter") addPurchase(); });
+  $("fundInput").addEventListener("input", e=>{ selectedFund = e.target.value; });
+  $("resetBtn").onclick = ()=>{
+    if(confirm("ล้างข้อมูลทั้งหมด? กู้คืนไม่ได้นะ")){
+      state = { target:0, purchases:[], customFunds:[] }; persist(); render();
+    }
+  };
+
+  const data = await loadData();
+  if(data){
+    state.target = data.target||0;
+    state.updatedAt = data.updatedAt || 0;
+    state.purchases = Array.isArray(data.purchases)?data.purchases:[];
+    const stored = Array.isArray(data.customFunds)?data.customFunds:[];
+    const fromP = state.purchases.map(p=>p.fund).filter(f=>f && !PRESET_FUNDS.includes(f));
+    state.customFunds = [...new Set([...stored, ...fromP])];
+  }
+  render();
+  setupPWA();
+  loadSyncCfg();
+  setupSyncUI();
+  setupImportUI();
+  setupExportUI();
+  if(sync.on){ pullRemote(); document.addEventListener("visibilitychange", ()=>{ if(!document.hidden) pullRemote(); }); }
+}
+
+// ---------- PWA icon + manifest ----------
+function makeIcon(){
+  const cv = document.createElement("canvas"); cv.width=cv.height=512;
+  const x = cv.getContext("2d");
+  x.fillStyle="#3B4CF0"; roundRect(x,0,0,512,512,110); x.fill();
+  x.lineWidth=64; x.lineCap="butt";
+  x.strokeStyle="#6E7BFF"; x.beginPath(); x.arc(256,256,148,0,Math.PI*2); x.stroke();
+  x.strokeStyle="#FFD23F"; x.beginPath(); x.arc(256,256,148,-Math.PI/2, -Math.PI/2 + Math.PI*1.35); x.stroke();
+  x.fillStyle="#FF5C4D"; x.beginPath(); x.arc(256,256,54,0,Math.PI*2); x.fill();
+  return cv.toDataURL("image/png");
+}
+function roundRect(c,x,y,w,h,r){ c.beginPath(); c.moveTo(x+r,y); c.arcTo(x+w,y,x+w,y+h,r); c.arcTo(x+w,y+h,x,y+h,r); c.arcTo(x,y+h,x,y,r); c.arcTo(x,y,x+w,y,r); c.closePath(); }
+function setupPWA(){
+  try{
+    const icon = makeIcon();
+    $("appleIcon").href = icon; $("favicon").href = icon;
+    const manifest = {
+      name:"กองทุนลดหย่อนภาษี", short_name:"ลดหย่อนภาษี",
+      display:"standalone", background_color:"#FBF4E9", theme_color:"#3B4CF0",
+      start_url:"./", scope:"./",
+      icons:[
+        {src:icon, sizes:"512x512", type:"image/png", purpose:"any maskable"},
+        {src:icon, sizes:"192x192", type:"image/png"}
+      ]
+    };
+    const url = URL.createObjectURL(new Blob([JSON.stringify(manifest)],{type:"application/json"}));
+    $("manifest").href = url;
+  }catch(e){}
+}
+
+
+// ---------- cloud sync (Supabase) ----------
+let sync = { url:"", key:"", code:"", on:false };
+let syncStatus = "off";
+function loadSyncCfg(){ try{ const v=localStorage.getItem("taxfund:sync"); if(v) sync=Object.assign(sync,JSON.parse(v)); }catch(e){} }
+function saveSyncCfg(){ try{ localStorage.setItem("taxfund:sync", JSON.stringify(sync)); }catch(e){} }
+function genCode(){ return "tf-"+Math.random().toString(36).slice(2,8)+Math.random().toString(36).slice(2,8); }
+function normalize(d){ return { target:d.target||0, purchases:Array.isArray(d.purchases)?d.purchases:[], customFunds:Array.isArray(d.customFunds)?d.customFunds:[], updatedAt:d.updatedAt||0 }; }
+function sbHeaders(){
+  const h = { "apikey":sync.key, "Content-Type":"application/json" };
+  if (/^eyJ/.test(sync.key)) h["Authorization"] = "Bearer "+sync.key; // legacy JWT anon key only
+  return h;
+}
+
+function setSync(st){
+  syncStatus = st;
+  const map = { off:"ปิดอยู่", ok:"ซิงค์แล้ว ✓", syncing:"กำลังซิงค์…", error:"เชื่อมต่อไม่ได้ ลองใหม่", offline:"ออฟไลน์" };
+  const el=$("syncStatus"); if(el){ el.textContent=map[st]||st; el.className="sync-status "+st; }
+  const dot=$("syncDot"); if(dot) dot.className="sync-dot "+(sync.on?st:"off");
+  const detail=$("syncDetail"); if(detail) detail.textContent = st==="error" ? (lastSyncError||"") : "";
+}
+let lastSyncError = "";
+
+async function pushRemote(){
+  if(!sync.on) return;
+  lastSyncError=""; setSync("syncing");
+  try{
+    const body=[{ code:sync.code, data:state, updated_at:new Date(state.updatedAt||Date.now()).toISOString() }];
+    const r=await fetch(sync.url+"/rest/v1/trackers?on_conflict=code", {
+      method:"POST",
+      headers:Object.assign(sbHeaders(),{ Prefer:"resolution=merge-duplicates" }),
+      body:JSON.stringify(body)
+    });
+    if(!r.ok){ lastSyncError = "HTTP "+r.status+" "+(await r.text()).slice(0,120); throw new Error(lastSyncError); }
+    setSync("ok");
+  }catch(e){ if(!lastSyncError) lastSyncError = String(e.message||e); setSync("error"); }
+}
+
+async function pullRemote(){
+  if(!sync.on) return;
+  lastSyncError=""; setSync("syncing");
+  try{
+    const r=await fetch(sync.url+"/rest/v1/trackers?code=eq."+encodeURIComponent(sync.code)+"&select=data,updated_at", { headers:sbHeaders() });
+    if(!r.ok){ lastSyncError = "HTTP "+r.status+" "+(await r.text()).slice(0,120); throw new Error(lastSyncError); }
+    const rows=await r.json();
+    if(rows && rows[0] && rows[0].data){
+      const rd=rows[0].data;
+      if((rd.updatedAt||0) > (state.updatedAt||0)){
+        state = normalize(rd); saveLocalOnly(); render(); setSync("ok");
+      } else if((state.updatedAt||0) > (rd.updatedAt||0)){
+        await pushRemote();
+      } else { setSync("ok"); }
+    } else {
+      await pushRemote(); // ยังไม่มีข้อมูลบนคลาวด์ → อัปของเครื่องนี้ขึ้นไป
+    }
+  }catch(e){ if(!lastSyncError) lastSyncError = String(e.message||e); setSync("error"); }
+}
+
+function fillSync(){ $("syncUrl").value=sync.url||""; $("syncKey").value=sync.key||""; if(sync.code) $("syncCode").value=sync.code; }
+
+function setupSyncUI(){
+  const backdrop=$("syncBackdrop");
+  $("syncBtn").onclick=()=>{
+    const impBackdrop=$("importBackdrop"); if(impBackdrop) impBackdrop.style.display="none";
+    const show = backdrop.style.display==="none";
+    if(show){ if(!$("syncCode").value) $("syncCode").value = sync.code || genCode(); fillSync(); }
+    backdrop.style.display = show ? "flex" : "none";
+  };
+  backdrop.onclick = (e)=>{ if(e.target===backdrop) backdrop.style.display="none"; };
+  $("syncSave").onclick=async ()=>{
+    sync.url=($("syncUrl").value||"").trim().replace(/\/+$/,"");
+    sync.key=($("syncKey").value||"").trim();
+    sync.code=($("syncCode").value||"").trim() || genCode();
+    $("syncCode").value=sync.code;
+    sync.on = !!(sync.url && sync.key && sync.code);
+    saveSyncCfg();
+    if(sync.on){ await pullRemote(); } else { setSync("off"); }
+  };
+  $("syncOff").onclick=()=>{ sync.on=false; saveSyncCfg(); setSync("off"); backdrop.style.display="none"; };
+  $("syncCopy").onclick=async ()=>{
+    try{ await navigator.clipboard.writeText($("syncCode").value); $("syncCopy").textContent="คัดลอกแล้ว"; setTimeout(()=>$("syncCopy").textContent="คัดลอก",1500);}catch(e){}
+  };
+  fillSync();
+  setSync(sync.on ? "ok" : "off");
+}
+
+
+// ---------- import (bring data from the Claude artifact / another export) ----------
+function setupImportUI(){
+  const backdrop = $("importBackdrop");
+  $("importBtn").onclick = ()=>{
+    $("syncBackdrop").style.display = "none";
+    backdrop.style.display = backdrop.style.display === "none" ? "flex" : "none";
+    $("importMsg").textContent = "";
+  };
+  backdrop.onclick = (e)=>{ if(e.target===backdrop) backdrop.style.display="none"; };
+  $("importCancel").onclick = ()=>{ backdrop.style.display = "none"; };
+  $("importDo").onclick = async ()=>{
+    const raw = ($("importText").value || "").trim();
+    if(!raw){ return; }
+    let parsed;
+    try{ parsed = JSON.parse(raw); }
+    catch(e){ $("importMsg").textContent = "โค้ดไม่ถูกต้อง ลองคัดลอกใหม่อีกครั้ง"; $("importMsg").style.color = "#B5321F"; return; }
+    state = normalize(parsed);
+    persist(); render();
+    $("importMsg").style.color = "#0B7A55";
+    $("importMsg").textContent = "นำเข้าสำเร็จ ✓" + (sync.on ? " กำลังซิงค์ขึ้นคลาวด์…" : "");
+    $("importText").value = "";
+    setTimeout(()=>{ backdrop.style.display = "none"; }, 1200);
+  };
+}
+
+
+// ---------- export (send data to another device / the deployed site) ----------
+function setupExportUI(){
+  const backdrop = $("exportBackdrop");
+  $("exportBtn").onclick = ()=>{
+    $("syncBackdrop").style.display = "none";
+    $("importBackdrop").style.display = "none";
+    $("exportText").value = JSON.stringify(state);
+    backdrop.style.display = "flex";
+  };
+  backdrop.onclick = (e)=>{ if(e.target===backdrop) backdrop.style.display="none"; };
+  $("exportClose").onclick = ()=>{ backdrop.style.display = "none"; };
+  $("exportCopy").onclick = async ()=>{
+    try{
+      await navigator.clipboard.writeText($("exportText").value);
+      $("exportCopy").textContent = "คัดลอกแล้ว ✓";
+      setTimeout(()=>{ $("exportCopy").textContent = "คัดลอก"; }, 1500);
+    }catch(e){
+      $("exportText").focus(); $("exportText").select();
+    }
+  };
+}
+
+init();
+</script>
+</body>
+</html>
