@@ -1,0 +1,5 @@
+# มีคีย์ Supabase + sync code — repo นี้เป็น public ห้าม commit เด็ดขาด
+project-info.md
+
+.DS_Store
+*.app/
