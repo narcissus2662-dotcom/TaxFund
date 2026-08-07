@@ -27,15 +27,13 @@
   body{ font-family:'Kanit', -apple-system, BlinkMacSystemFont, sans-serif; color:var(--ink); }
   #app{
     max-width:440px; margin:0 auto;
-    padding:calc(22px + env(safe-area-inset-top)) 16px calc(40px + env(safe-area-inset-bottom));
+    padding:calc(22px + env(safe-area-inset-top)) 16px calc(96px + env(safe-area-inset-bottom));
     min-height:100vh;
   }
 
   .hdr{display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:20px;}
   .eyebrow{font-size:12px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:#B5321F; margin-bottom:1px;}
   .hdr h1{font-size:30px; font-weight:800; margin:0; line-height:1.05; letter-spacing:-.01em;}
-  .reset{background:#fff; border:2px solid var(--ink); border-radius:14px; width:40px; height:40px; display:grid; place-items:center; color:var(--ink); cursor:pointer; font-size:18px; font-weight:700;}
-  .reset:active{background:var(--lemon);}
 
   .target{background:var(--cobalt); border-radius:22px; padding:16px 20px; display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;}
   .target-label{display:flex; align-items:center; gap:6px; color:#EAEDFF; font-size:14px; font-weight:600;}
@@ -105,9 +103,39 @@
 
   @media (prefers-reduced-motion: reduce){ *{transition:none !important;} }
 
+  /* แท็บ */
+  .view{display:none;}
+  .view.active{display:block;}
+
+  #bnav{
+    position:fixed; left:0; right:0; bottom:0; z-index:60;
+    max-width:440px; margin:0 auto;
+    background:#fff; border-top:2px solid var(--line);
+    display:flex; padding:6px 8px calc(6px + env(safe-area-inset-bottom));
+  }
+  #bnav.kbd{display:none;}
+  .bnav-btn{
+    flex:1; background:none; border:none; cursor:pointer; font-family:inherit;
+    display:flex; flex-direction:column; align-items:center; gap:3px;
+    padding:2px 0 4px; color:var(--muted);
+  }
+  .bnav-ico{position:relative; font-size:18px; line-height:1; padding:5px 18px; border-radius:16px;}
+  .bnav-lbl{font-size:11px; font-weight:700;}
+  .bnav-btn.active{color:var(--cobalt);}
+  .bnav-btn.active .bnav-ico{background:#E1E5FD;}
+  .bnav-ico .sync-dot{top:-1px; right:9px;}
+
+  /* ตั้งค่า */
+  .set-row{width:100%; display:flex; align-items:center; gap:12px; background:#fff; border:2px solid var(--line); border-radius:16px; padding:12px 14px; margin-bottom:9px; font-family:inherit; font-size:15px; font-weight:700; color:var(--ink); cursor:pointer; text-align:left;}
+  .set-row:active{background:var(--cream);}
+  .set-ico{font-size:18px; width:24px; text-align:center; flex:none;}
+  .set-txt{flex:1; display:flex; flex-direction:column; gap:1px;}
+  .set-sub{font-style:normal; font-size:11px; font-weight:500; color:var(--muted);}
+  .set-go{color:var(--muted); font-size:18px; flex:none;}
+  .set-danger{color:#B5321F; border-color:#F0D7D2;}
+  .set-danger .set-sub{color:#B5321F;}
+
   /* sync */
-  .hdr-btns{display:flex; gap:8px;}
-  .sync-btn{position:relative;}
   .sync-dot{position:absolute; top:5px; right:5px; width:9px; height:9px; border-radius:50%; border:2px solid #fff; box-sizing:border-box;}
   .sync-dot.off{background:#C9BFA8;} .sync-dot.ok{background:#14C48B;}
   .sync-dot.syncing{background:#FFB021;} .sync-dot.error{background:#FF5C4D;} .sync-dot.offline{background:#C9BFA8;}
@@ -137,13 +165,10 @@
       <div class="eyebrow">กองทุนลดหย่อนภาษี</div>
       <h1 id="yearTitle">แผนการซื้อ</h1>
     </div>
-    <div class="hdr-btns">
-      <button class="reset" id="exportBtn" title="ส่งออกข้อมูล" style="display:none">⬆</button>
-      <button class="reset" id="importBtn" title="นำเข้าข้อมูล">⇩</button>
-      <button class="reset sync-btn" id="syncBtn" title="ซิงค์หลายเครื่อง">☁<span class="sync-dot off" id="syncDot"></span></button>
-      <button class="reset" id="resetBtn" title="ล้างข้อมูล" style="display:none">↺</button>
-    </div>
   </div>
+
+  <!-- ═══ แท็บ: ภาพรวม ═══ -->
+  <section class="view active" id="viewHome">
 
   <!-- เป้าหมาย -->
   <div class="target">
@@ -175,6 +200,11 @@
   <!-- ทยอยซื้อรายสัปดาห์ -->
   <div id="paceSlot"></div>
 
+  </section>
+
+  <!-- ═══ แท็บ: บันทึก ═══ -->
+  <section class="view" id="viewLog">
+
   <!-- ฟอร์ม -->
   <div class="card">
     <div class="form-title">บันทึกการซื้อ</div>
@@ -195,6 +225,35 @@
   <!-- รายการ -->
   <div class="list" id="list"></div>
   <div class="empty" id="emptyMsg" style="display:none">ยังไม่มีรายการ — เริ่มบันทึกการซื้อครั้งแรกได้เลย</div>
+
+  </section>
+
+  <!-- ═══ แท็บ: ตั้งค่า ═══ -->
+  <section class="view" id="viewSettings">
+  <div class="card">
+    <div class="form-title">ตั้งค่า</div>
+    <button class="set-row" id="syncBtn">
+      <span class="set-ico">☁</span>
+      <span class="set-txt">ซิงค์หลายเครื่อง<i class="set-sub" id="syncRowNote">ปิดอยู่</i></span>
+      <span class="set-go">›</span>
+    </button>
+    <button class="set-row" id="exportBtn" style="display:none">
+      <span class="set-ico">⬆</span>
+      <span class="set-txt">ส่งออกข้อมูล<i class="set-sub">คัดลอกไปวางในเครื่องอื่น</i></span>
+      <span class="set-go">›</span>
+    </button>
+    <button class="set-row" id="importBtn">
+      <span class="set-ico">⇩</span>
+      <span class="set-txt">นำเข้าข้อมูล<i class="set-sub">วางโค้ดที่ส่งออกมาจากเครื่องอื่น</i></span>
+      <span class="set-go">›</span>
+    </button>
+    <button class="set-row set-danger" id="resetBtn" style="display:none">
+      <span class="set-ico">↺</span>
+      <span class="set-txt">ล้างข้อมูลทั้งหมด<i class="set-sub">ลบเป้าหมายและรายการซื้อทั้งหมด กู้คืนไม่ได้</i></span>
+      <span class="set-go">›</span>
+    </button>
+  </div>
+  </section>
 
   <div class="modal-backdrop" id="importBackdrop" style="display:none">
   <div class="sync-panel" id="importPanel">
@@ -246,6 +305,18 @@
     <div class="sync-note">ข้อมูลเก็บบน Supabase ของคุณเอง · sync code นี้เหมือนรหัสผ่านเข้าถึงข้อมูล อย่าเผยแพร่ · เครื่องที่แก้ล่าสุดจะทับของเก่า</div>
   </div>
   </div>
+
+  <nav id="bnav">
+    <button class="bnav-btn active" data-view="viewHome">
+      <span class="bnav-ico">📊</span><span class="bnav-lbl">ภาพรวม</span>
+    </button>
+    <button class="bnav-btn" data-view="viewLog">
+      <span class="bnav-ico">✏️</span><span class="bnav-lbl">บันทึก</span>
+    </button>
+    <button class="bnav-btn" data-view="viewSettings">
+      <span class="bnav-ico">⚙️<span class="sync-dot off" id="syncDot"></span></span><span class="bnav-lbl">ตั้งค่า</span>
+    </button>
+  </nav>
 </div>
 
 <script>
@@ -306,8 +377,9 @@ function render(){
   const t = totals();
   const funds = byFund();
 
-  $("resetBtn").style.display = (state.target>0 || state.purchases.length>0) ? "grid" : "none";
-  $("exportBtn").style.display = (state.target>0 || state.purchases.length>0) ? "grid" : "none";
+  const hasData = state.target>0 || state.purchases.length>0;
+  $("resetBtn").style.display = hasData ? "flex" : "none";
+  $("exportBtn").style.display = hasData ? "flex" : "none";
   renderTarget();
 
   const segs = $("segs"); segs.innerHTML = "";
@@ -423,6 +495,31 @@ function renderList(){
 
 function escapeHtml(s){ return String(s).replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
 
+// ---------- แท็บล่าง (UI state ล้วนๆ ไม่เก็บใน state / ไม่ซิงค์ข้ามเครื่อง) ----------
+const VIEWS = ["viewHome","viewLog","viewSettings"];
+let activeTab = "viewHome";
+function switchTab(view){
+  if(!VIEWS.includes(view)) return;
+  activeTab = view;
+  VIEWS.forEach(v=>{ const el=$(v); if(el) el.classList.toggle("active", v===view); });
+  document.querySelectorAll(".bnav-btn").forEach(b=> b.classList.toggle("active", b.dataset.view===view));
+  window.scrollTo(0,0);
+}
+function setupNav(){
+  document.querySelectorAll(".bnav-btn").forEach(b=>{ b.onclick = ()=> switchTab(b.dataset.view); });
+  // มือถือ: ซ่อน nav ตอนคีย์บอร์ดเด้งขึ้น ไม่ให้ลอยทับช่องกรอก
+  if(window.matchMedia && window.matchMedia("(pointer:coarse)").matches){
+    let t=null;
+    const isField = (el)=> el && (el.tagName==="INPUT" || el.tagName==="TEXTAREA");
+    document.addEventListener("focusin", e=>{
+      if(isField(e.target)){ clearTimeout(t); $("bnav").classList.add("kbd"); }
+    });
+    document.addEventListener("focusout", e=>{
+      if(isField(e.target)){ clearTimeout(t); t=setTimeout(()=>$("bnav").classList.remove("kbd"), 150); }
+    });
+  }
+}
+
 // ---------- actions ----------
 function addPurchase(){
   const amt = parseFloat(($("amountInput").value||"").replace(/,/g,""));
@@ -462,6 +559,7 @@ async function init(){
     state.customFunds = [...new Set([...stored, ...fromP])];
   }
   render();
+  setupNav();
   setupPWA();
   loadSyncCfg();
   setupSyncUI();
@@ -520,6 +618,7 @@ function setSync(st){
   const el=$("syncStatus"); if(el){ el.textContent=map[st]||st; el.className="sync-status "+st; }
   const dot=$("syncDot"); if(dot) dot.className="sync-dot "+(sync.on?st:"off");
   const detail=$("syncDetail"); if(detail) detail.textContent = st==="error" ? (lastSyncError||"") : "";
+  const row=$("syncRowNote"); if(row) row.textContent = sync.on ? (map[st]||st) : "ปิดอยู่";
 }
 let lastSyncError = "";
 
