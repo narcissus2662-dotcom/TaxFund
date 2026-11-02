@@ -3,72 +3,73 @@
 Project context for Claude Code. Read this before editing.
 
 ## What this is
-A personal **Thai tax-saving-fund purchase tracker** — a single-file web app (PWA) that logs
-fund purchases, shows progress toward an annual target as a donut chart, and tells the user how
-much to buy each week to hit the target by **30 November**. UI language is **Thai**.
+A personal **Thai tax-saving-fund purchase tracker**. It logs fund purchases, shows progress toward an
+annual target as a donut chart, and tells the user how much to buy each week to hit the target by
+**30 November**. UI language is **Thai**.
+
+Since 2 Nov 2026 the real data lives in a **Google Sheet** and the app is a **Google Apps Script web app**
+bound to that Sheet. Before that, data lived only in the phone browser's localStorage and was lost when
+Chrome site data was cleared. Design: `docs/superpowers/specs/2026-11-02-sheet-storage-design.md`.
 
 ## Structure
-- **`index.html`** — the entire app. Self-contained: HTML + CSS + vanilla JS in one file.
-  There is **no build step**, no framework, no bundler, no dependencies.
-- **`CLAUDE.md`** — this file.
+- **`apps-script/Code.gs`** — server side: `doGet()` and the functions the page calls through
+  `google.script.run` (`getData`, `addPurchase`, `deletePurchase`, `setTarget`, `setCustomFunds`).
+- **`apps-script/Index.html`** — the whole app page (HTML + CSS + vanilla JS, no build step).
+  The block between `/* PURE-START */` and `/* PURE-END */` holds logic that must not touch the DOM
+  or `google.script.run`, so it can be tested with JavaScriptCore.
+- **`apps-script/DEPLOY.md`** — Thai step-by-step guide for pasting the code into Apps Script and deploying.
+- **`tests/`** — `run.sh` runs `server.test.js` (Code.gs against a fake Sheet in `fakes.js`) and
+  `client.test.js` (the PURE block).
+- **`index.html`** — the old Netlify link, now only a "the app has moved" page with a button to the
+  Apps Script URL. It must never store data again.
+- **`tax-fund-tracker.jsx`** — the first React prototype, kept for history only.
 
-Keep it a single file. Do not introduce a build system, npm packages, or split files unless
-explicitly asked — the whole point is drag-to-deploy simplicity.
+## Data
+- Sheet tab **`Purchases`**: row 1 header `id | date | fund | amount | createdAt`. `date` is plain text
+  `YYYY-MM-DD` (column B is formatted as text; `getData` also converts Date cells defensively).
+  `id` comes from the app (`Date.now()`) so a retried add is never duplicated.
+- Sheet tab **`Settings`**: `A1 target / B1 number`, `A2 customFunds / B2 JSON string`.
+- Every write holds `LockService.getScriptLock()`.
+- The page keeps two localStorage keys, both disposable: `taxfund:cache` (last data from the Sheet,
+  for a fast first paint) and `taxfund:queue` (changes not yet confirmed by the Sheet).
+- A change leaves the queue only after the server call succeeds. Each op is marked `sent` before its
+  call, so deleting an add that may already be in the Sheet queues a delete instead of cancelling it.
+- Error kinds (`classifyError`): `offline` and `server` retry on a 15 s / 30 s / 60 s backoff (and on the
+  `online` event); `auth` and `reauth` never retry automatically and clear after a successful load;
+  `rejected` (server throws `REJECT: ...` for bad input) is dropped from the queue and shown once.
+- `Code.gs` starts with `/** @OnlyCurrentDoc */` so each account only grants access to this Sheet.
 
-## Deploy
-Hosted on **Netlify**, connected to this **GitHub** repo.
-Pushing to the default branch triggers an automatic Netlify redeploy. So: edit → commit → push,
-and the live site updates on its own. No manual upload needed.
+## Access and deploy
+- Deployed as **Execute as: User accessing the web app** + **Who has access: Anyone with Google account**.
+  Who can actually use it is controlled by **sharing the Sheet as Editor**. Never combine
+  "Execute as: Me" with "Anyone with Google account": anyone with the link could read and write the data.
+- Updating code: paste into the Apps Script editor, then **Deploy → Manage deployments → edit →
+  New version** so the URL stays the same.
+- Copying code to the clipboard from this Mac: the shell has no `LANG`, so plain `pbcopy` turns Thai
+  into garbage. Always use `LANG=en_US.UTF-8 pbcopy < file` and check with
+  `osascript -e 'the clipboard as text'`, not `pbpaste` (pbpaste hides the problem).
+- Netlify still serves this repo's root on push (the moved page). No build step.
 
-## Data storage (dual-mode, same file works in both places)
-- The app calls `window.storage` if present (Claude.ai artifact runtime), otherwise falls back to
-  `localStorage` (deployed site). See `loadData()` / `saveData()`.
-- Local data key: **`taxfund:data`** — JSON `{ target, purchases[], customFunds[], updatedAt }`.
-- Do NOT hard-require `localStorage` at top level (it throws in the Claude artifact sandbox) — the
-  guarded fallback pattern must stay.
-
-## Optional cloud sync (Supabase)
-- Lets the user sync across devices. Config stored locally under key **`taxfund:sync`**
-  (`{ url, key, code, on }`), entered via the ☁ button in the header.
-- Uses Supabase REST directly (no SDK): `POST /rest/v1/trackers?on_conflict=code` with header
-  `Prefer: resolution=merge-duplicates` to upsert; `GET /rest/v1/trackers?code=eq.<code>` to pull.
-- Auth: the key always goes in the `apikey` header. `sbHeaders()` adds `Authorization: Bearer` **only**
-  for legacy JWT anon keys (those starting `eyJ`) — a `sb_publishable_…` key does not get that header.
-- Table `public.trackers (code text pk, data jsonb, updated_at timestamptz)` with RLS + anon
-  policies. Conflict strategy: **last-write-wins** by `updatedAt`.
-- `code` is a secret (like a password). Never log it or expose it.
-
-## Key logic
-- **Donut**: drawn with SVG `<circle>` stroke-dasharray segments (`#segs` group), one per fund plus
-  a remainder arc. Center shows overall %.
-- **Weekly pace**: `remaining / weeksToDeadline()`, where the deadline is 30 Nov of the current year.
-- **Fund chips**: presets `["RMF","SSF","Thai ESG","Thai ESGX"]` plus user-typed funds, which persist
-  in `customFunds` and render with a delete ✕.
-- **PWA**: manifest + icon are generated at runtime (`setupPWA()` / `makeIcon()` via canvas) so the
-  app stays a single file.
+## Never commit
+- `project-info.md` (old Supabase key and sync code), `recovered-data-*.json`, `import-code-*.txt`
+  (real financial data). They are listed in `.gitignore` / `.git/info/exclude`.
+- Email addresses, the Sheet ID, or any real amounts. The repo and the Netlify site are public.
 
 ## Conventions / guardrails
-- **Font**: Kanit (Google Fonts) — supports Thai + Latin, used at weights up to 800.
-- **Palette**: cobalt `#3B4CF0`, coral `#FF5C4D`, lemon `#FFD23F`, mint `#14C48B`, bubble `#FF8CC6`,
-  violet `#8B5CF6`; bg cream `#FBF4E9`, ink text `#16130F`.
-- **Accessibility**: all text/background pairs currently pass **WCAG AA** (≥4.5:1 normal, ≥3:1 large).
-  If you change any color, re-check contrast before committing. Rule of thumb: dark ink text on the
-  bright color blocks, not light-on-light.
-- Keep element **IDs and class names stable** — the JS wires everything by ID.
-- Keep UI copy in **Thai**.
-- After changing `state`, always call **`persist()`** (it stamps `updatedAt` and schedules the cloud
-  push), never `saveData()` / `saveLocalOnly()` directly — otherwise the change never syncs.
-- If you change the shape of `state`, update **`normalize()`** too, or older synced data breaks.
+- **Font**: Kanit (Google Fonts). **Palette**: cobalt `#3B4CF0`, coral `#FF5C4D`, lemon `#FFD23F`,
+  mint `#14C48B`, bubble `#FF8CC6`, violet `#8B5CF6`; bg cream `#FBF4E9`, ink `#16130F`.
+- All text/background pairs pass **WCAG AA**. Re-check contrast if you change a color.
+- Keep element **IDs and class names stable**; the JS wires everything by ID.
+- Keep UI copy in **Thai**, with no em or en dashes.
 - Month indexes in JS are 0-based: the 30 Nov deadline is `new Date(year, 10, 30)`.
-- Sanity-check after editing (see below).
 
 ## Handy commands
 ```bash
-# quick JS syntax check on the inline script (Node is NOT installed on this Mac —
-# use the built-in JavaScriptCore instead; new Function() parses without executing)
-sed -n '/<script>/,/<\/script>/p' index.html | sed '1d;$d' > /tmp/app.js && \
+# all tests (Node is NOT installed; this uses the built-in JavaScriptCore)
+bash tests/run.sh
+
+# syntax check of every <script> block in the app page
+awk '/<script>/{f=1;next}/<\/script>/{f=0}f' apps-script/Index.html > /tmp/app.js && \
 /System/Library/Frameworks/JavaScriptCore.framework/Versions/A/Helpers/jsc \
   -e 'new Function(readFile("/tmp/app.js")); print("JS OK")'
-
-git add -A && git commit -m "..." && git push   # → Netlify auto-deploys
 ```

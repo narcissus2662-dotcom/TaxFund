@@ -3,3 +3,7 @@ project-info.md
 
 .DS_Store
 *.app/
+
+# ข้อมูลการเงินจริง ห้ามขึ้น repo สาธารณะ
+recovered-data-*.json
+import-code-*.txt
